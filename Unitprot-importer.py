@@ -30,18 +30,18 @@ BIOPROPERTIES_UNIPROT_KEYWORDS = {
 }
 
 
-def get_uniprot_entries_from_query(query, verbose=True, max_length=50):
+def get_uniprot_entries_from_query(query, verbose=True, max_length=50, reviewed=True):
     entries = []
     if verbose:
         print("Interrogating Unitprot with the following query: '{}' "
-              "and a max sequence length of {}... ".format(query,
-                                                          max_length),
+              "and a max sequence length of {} (reviewed={})... ".format(query,
+                                                                         max_length, reviewed),
               end=""
               )
         sys.stdout.flush()
 
     response = ""
-    cache_file = ".cache_uniprot_{}_{}".format(query, max_length)
+    cache_file = ".cache_uniprot_{}_{}_{}".format(query, max_length, reviewed)
 
     if os.path.isfile(cache_file):
         print("No need: cache file found and used!")
@@ -49,9 +49,13 @@ def get_uniprot_entries_from_query(query, verbose=True, max_length=50):
             response = fp.read()
     else:
         try:
+            if reviewed:
+                reviewed = "yes"
+            else:
+                reviewed = "no"
+
             timeout = 60
-            r = requests.get("https://www.uniprot.org/uniprot/?query={}+length:[*+TO+{}]"
-                             "&columns=id&format=tab".format(query, max_length),
+            r = requests.get("https://www.uniprot.org/uniprot/?query={}+length:[1+TO+{}]+AND+reviewed:{}&columns=id&format=tab".format(query, max_length, reviewed),
                              timeout=timeout)
         except requests.exceptions.Timeout:
             print("ERROR! Unitprot did not respond within {} seconds!".format(timeout))
@@ -372,7 +376,20 @@ def populate_entry_using_uniprot_xml(entry, tree, debug=False):
 
 
 if __name__ == "__main__":
-    SILENT = True
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Process a Unitprot query and create a database accordingly.')
+    parser.add_argument("query", help="Query to send to Unitprot server")
+    parser.add_argument("--max-length", type=int, default=50,
+                        help="Specify the maximum length (number of AA) for the Unitprot query")
+    parser.add_argument("--verbose", action="store_true", help="Be verbose")
+    parser.add_argument("--nonreviewed", action="store_false", help="Search for non-reviewed entries", dest="reviewed")
+    parser.add_argument("--basename", help="Base name for the file where the database will be saved to", default="DATABASE")
+
+    args = parser.parse_args()
+
+
+    SILENT = not args.verbose
 
     logger = logging.getLogger('Uniport-importer')
     LOGFILE = 'uniprot_importer.log'
@@ -384,14 +401,14 @@ if __name__ == "__main__":
     logger.setLevel(logging.WARNING)
 
 
-    print("Loading ADAPTABLE database:")
+    #print("Loading ADAPTABLE database:")
 
-    current_library = Library("../DATABASE")
-    current_library.read()
+    #current_library = Library("../DATABASE")
+    #current_library.read()
 
-    unitprot_library = Library("../UNIPROT")
+    unitprot_library = Library("{}_{}".format(args.basename, args.query))
 
-    entries = get_uniprot_entries_from_query("antimicrobial")
+    entries = get_uniprot_entries_from_query(args.query, verbose=args.verbose, max_length=args.max_length, reviewed=args.reviewed)
 
     counter_all = 0
     counter_new = 0
@@ -420,21 +437,29 @@ if __name__ == "__main__":
             if len(ellipsed_sequence) > 50:
                 ellipsed_sequence = ellipsed_sequence[:50] + "..."
 
-            try:
-                raise KeyError
-                entry = current_library.entries[sequence]
-                if SILENT:
-                    print("UPDATE", end="")
-                else:
-                    print("UPDATE entry:", end="")
-            except KeyError:
-                entry = Entry(sequence)
+            # try:
+            #     raise KeyError
+            #     entry = current_library.entries[sequence]
+            #     if SILENT:
+            #         print("UPDATE", end="")
+            #     else:
+            #         print("UPDATE entry:", end="")
+            # except KeyError:
+            #     entry = Entry(sequence)
+            #
+            #     if SILENT:
+            #         print("NEW   ", end="")
+            #     else:
+            #         print("NEW entry:", end="")
+            #     counter_new += 1
 
-                if SILENT:
-                    print("NEW   ", end="")
-                else:
-                    print("NEW entry:", end="")
-                counter_new += 1
+            entry = Entry(sequence)
+
+            if SILENT:
+                print("NEW   ", end="")
+            else:
+                print("NEW entry:", end="")
+            counter_new += 1
 
             if not SILENT:
                 print(" '{}'".format(ellipsed_sequence))

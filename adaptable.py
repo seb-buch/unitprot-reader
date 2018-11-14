@@ -65,21 +65,12 @@ class Entry(object):
         60: 'solubility',
         61: 'activity',
         62: 'activity_test',
-        63: 'sequence_length_range',
-        64: 'n_regions',
-        65: 'align_method',
-        66: 'level_agreement',
-        67: 'families_to_analyse',
-        68: 'min_seq_length',
-        69: 'work_in_simplified_aa_space',
-        70: 'verbose',
-        71: 'plot_graphs',
-        72: 'design_family_representative_peptide',
-        73: 'analyse_only_region_of_the_fam_father',
-        74: 'calculation_label',
+        63: 'ribosomal',
+        64: 'experimental',
+        65: 'biofilm'
     }
 
-    nproperties_used = 59
+    nproperties_used = 65
 
     def __init__(self, sequence, fasta_comment=None):
         self.sequence = sequence
